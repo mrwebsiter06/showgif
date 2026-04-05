@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Air Canvas &mdash; showgif.fun</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #0a0a0f;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    #container {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+    }
+
+    video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    #drawCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* ── TOOLBAR ── */
+    #toolbar {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(10, 10, 20, 0.8);
+      backdrop-filter: blur(20px) saturate(180%);
+      border-radius: 50px;
+      padding: 10px 18px;
+      pointer-events: all;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .color-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2.5px solid transparent;
+      cursor: pointer;
+      transition: transform 0.18s, box-shadow 0.18s;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      flex-shrink: 0;
+    }
+
+    .color-btn:hover {
+      transform: scale(1.22);
+    }
+
+    .color-btn.active {
+      border-color: #fff;
+      transform: scale(1.28);
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .tb-sep {
+      width: 1px;
+      height: 22px;
+      background: rgba(255, 255, 255, 0.15);
+      margin: 0 2px;
+      flex-shrink: 0;
+    }
+
+    .tb-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: rgba(255, 255, 255, 0.9);
+      border-radius: 22px;
+      padding: 5px 13px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 500;
+      pointer-events: all;
+      transition: background 0.18s, transform 0.12s;
+      white-space: nowrap;
+    }
+
+    .tb-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+      transform: translateY(-1px);
+    }
+
+    .tb-btn.active {
+      background: rgba(139, 92, 246, 0.35);
+      border-color: rgba(139, 92, 246, 0.7);
+      color: #c4b5fd;
+    }
+
+    .tb-btn.active-erase {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: rgba(239, 68, 68, 0.65);
+      color: #fca5a5;
+    }
+
+    /* ── EMOJI SIDEBAR ── */
+    #emoji-panel {
+      position: absolute;
+      left: -170px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      pointer-events: all;
+      z-index: 20;
+      transition: left 0.32s cubic-bezier(0.34, 1.4, 0.64, 1);
+    }
+
+    #emoji-panel.visible {
+      left: 8px;
+    }
+
+    #emoji-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      background: rgba(10, 10, 20, 0.92);
+      backdrop-filter: blur(24px);
+      border-radius: 18px;
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 6px 0 32px rgba(0, 0, 0, 0.6);
+      max-height: 70vh;
+      overflow-y: auto;
+      width: 154px;
+    }
+
+    #emoji-bar::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    #emoji-bar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #emoji-bar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+
+    .emoji-category {
+      grid-column: 1 / -1;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.35);
+      text-transform: uppercase;
+      padding: 5px 2px 2px;
+    }
+
+    .emoji-btn {
+      font-size: 28px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 10px;
+      transition: transform 0.15s, background 0.15s;
+      line-height: 1;
+      user-select: none;
+      text-align: center;
+      display: block;
+    }
+
+    .emoji-btn:hover {
+      transform: scale(1.25);
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .emoji-btn.selected {
+      background: rgba(139, 92, 246, 0.4);
+      transform: scale(1.15);
+      box-shadow: 0 0 12px rgba(139, 92, 246, 0.6);
+    }
+
+    #emoji-bar-header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 5px;
+      margin-bottom: 2px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #emoji-bar-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 0.06em;
+    }
+
+    #closeEmojiPanel {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 10px;
+      line-height: 1;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    #closeEmojiPanel:hover {
+      background: rgba(239, 68, 68, 0.4);
+      border-color: rgba(239, 68, 68, 0.7);
+    }
+
+    #emoji-hint {
+      margin-top: 6px;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.4);
+      text-align: center;
+      padding: 0 2px;
+    }
+
+    /* ── STATUS ── */
+    #status {
+      position: absolute;
+      top: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10, 10, 20, 0.7);
+      backdrop-filter: blur(12px);
+      border-radius: 22px;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.6);
+      white-space: nowrap;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* ── CURSOR ── */
+    #cursor {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      display: none;
+      transition: width 0.18s ease, height 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    #cursor.draw-mode {
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid white;
+      background: transparent;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    }
+
+    #cursor.wipe-mode {
+      width: 88px;
+      height: 88px;
+      border: 2px solid rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* ── BOTTOM BAR ── */
+    #bottom-bar {
+      position: absolute;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      pointer-events: all;
+    }
+
+    #snapBtn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%);
+      border: 3px solid rgba(255, 255, 255, 0.4);
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.12s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+    }
+
+    #snapBtn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 6px 26px rgba(0, 0, 0, 0.5);
+    }
+
+    #snapBtn:active {
+      transform: scale(0.93);
+    }
+
+    .bar-btn {
+      background: rgba(10, 10, 20, 0.78);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: white;
+      border-radius: 24px;
+      padding: 9px 20px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 500;
+      transition: background 0.15s, transform 0.12s;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    }
+
+    .bar-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    /* ── BRUSH PANEL ── */
+    #brush-panel {
+      position: absolute;
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: all;
+      background: rgba(10, 10, 20, 0.72);
+      backdrop-filter: blur(12px);
+      border-radius: 22px;
+      padding: 14px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #brush-panel label {
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 9px;
+      writing-mode: vertical-lr;
+      transform: rotate(180deg);
+      letter-spacing: 0.08em;
+    }
+
+    #brushRange {
+      appearance: slider-vertical;
+      -webkit-appearance: slider-vertical;
+      writing-mode: vertical-lr;
+      height: 90px;
+      cursor: pointer;
+    }
+
+    #brush-dot {
+      border-radius: 50%;
+      background: white;
+      width: 8px;
+      height: 8px;
+      transition: width 0.2s, height 0.2s;
+    }
+
+    /* ── GESTURE HINT ── */
+    #gesture-hint {
+      position: absolute;
+      left: 18px;
+      bottom: 22px;
+      background: rgba(10, 10, 20, 0.72);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 10px 14px;
+      pointer-events: none;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.42);
+      line-height: 1.9;
+    }
+
+    #gesture-hint strong {
+      color: rgba(255, 255, 255, 0.68);
+      display: block;
+      margin-bottom: 3px;
+      font-size: 11px;
+    }
+
+    /* ── PHOTO PREVIEW ── */
+    #preview {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 18px;
+      z-index: 100;
+    }
+
+    #preview.show {
+      display: flex;
+    }
+
+    #preview-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    #previewImg {
+      max-width: 80vw;
+      max-height: 65vh;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    #preview-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    #preview-actions button {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: white;
+      border-radius: 22px;
+      padding: 10px 24px;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 500;
+      transition: background 0.15s;
+    }
+
+    #preview-actions button:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    #dlBtn {
+      background: rgba(52, 211, 153, 0.22) !important;
+      border-color: rgba(52, 211, 153, 0.5) !important;
+      color: #6ee7b7 !important;
+    }
+
+    /* ── LOADING ── */
+    #loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0a0a0f 0%, #12122a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      z-index: 200;
+    }
+
+    #loading-logo {
+      font-size: 44px;
+      animation: floatAnim 2s ease-in-out infinite;
+    }
+
+    @keyframes floatAnim {
+
+      0%,
+      100% {
+        transform: translateY(0)
+      }
+
+      50% {
+        transform: translateY(-10px)
+      }
+    }
+
+    #loading h1 {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    #loading p {
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 13px;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(167, 139, 250, 0.2);
+      border-top-color: #a78bfa;
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── DISCLAIMER ── */
+    #disclaimer {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: linear-gradient(145deg, #07071a 0%, #0f0f2e 60%, #1a0a2e 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      font-family: 'Inter', sans-serif;
+      overflow-y: auto;
+    }
+
+    #disclaimer-box {
+      max-width: 450px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 22px;
+      padding: 24px 22px 20px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      text-align: center;
+      animation: fadeUp 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    #disc-brand {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: rgba(167, 139, 250, 0.7);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    #disclaimer-icon {
+      font-size: 36px;
+      margin-bottom: 6px;
+      display: block;
+      animation: floatAnim 2.5s ease-in-out infinite;
+    }
+
+    #wip-badge {
+      display: inline-block;
+      background: rgba(251, 146, 60, 0.18);
+      border: 1px solid rgba(251, 146, 60, 0.45);
+      color: #fb923c;
+      border-radius: 50px;
+      padding: 2px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      animation: pulseAnim 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseAnim {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.3)
+      }
+
+      50% {
+        box-shadow: 0 0 0 6px rgba(251, 146, 60, 0)
+      }
+    }
+
+    #disclaimer-box h2 {
+      font-size: 19px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, #a78bfa, #60a5fa, #34d399);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    #disclaimer-box>p {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    .disc-tips {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+
+    .disc-tip {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 11px;
+      padding: 9px 11px;
+    }
+
+    .disc-tip-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .disc-tip-text {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.58);
+      line-height: 1.45;
+    }
+
+    .disc-tip-text strong {
+      color: rgba(255, 255, 255, 0.88);
+      display: block;
+      margin-bottom: 1px;
+    }
+
+    /* Permission row */
+    #perm-block {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 9px 13px;
+      margin-bottom: 13px;
+      gap: 10px;
+    }
+
+    #perm-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #perm-icon-wrap {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: rgba(96, 165, 250, 0.15);
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+    }
+
+    #perm-label {
+      text-align: left;
+    }
+
+    #perm-label strong {
+      display: block;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    #perm-label span {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.42);
+    }
+
+    #perm-status {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 9px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.07);
+      color: rgba(255, 255, 255, 0.38);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      transition: all 0.3s;
+    }
+
+    #perm-status.granted {
+      background: rgba(52, 211, 153, 0.2);
+      color: #34d399;
+      border-color: rgba(52, 211, 153, 0.4);
+    }
+
+    #perm-status.denied {
+      background: rgba(244, 63, 94, 0.2);
+      color: #f43f5e;
+      border-color: rgba(244, 63, 94, 0.4);
+    }
+
+    #perm-status.asking {
+      background: rgba(251, 146, 60, 0.2);
+      color: #fb923c;
+      border-color: rgba(251, 146, 60, 0.4);
+    }
+
+    #acceptBtn {
+      width: 100%;
+      padding: 11px;
+      background: linear-gradient(135deg, #a78bfa, #60a5fa);
+      border: none;
+      border-radius: 13px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s, background 0.4s;
+      box-shadow: 0 6px 20px rgba(167, 139, 250, 0.35);
+    }
+
+    #acceptBtn:hover {
+      opacity: 0.88;
+      transform: translateY(-2px);
+    }
+
+    #acceptBtn:active {
+      transform: translateY(0);
+    }
+
+    #acceptBtn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #disc-footer {
+      margin-top: 9px;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.22);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ═══ DISCLAIMER ═══════════════════════════════════════════════════════ -->
+  <div id="disclaimer">
+    <div id="disclaimer-box">
+      <div id="disc-brand">showgif.fun</div>
+      <span id="disclaimer-icon">🎨</span>
+      <div id="wip-badge">🚧 Work in Progress</div>
+      <h2>Air Canvas</h2>
+      <p>Draw in the air using your <strong>camera &amp; hand gestures</strong> — powered by real-time AI. Please be
+        patient for best results!</p>
+      <div class="disc-tips">
+        <div class="disc-tip">
+          <span class="disc-tip-icon">👋</span>
+          <div class="disc-tip-text">
+            <strong>Move slowly &amp; patiently</strong>
+            Jerky movements confuse the tracker. Draw at a calm, steady pace.
+          </div>
+        </div>
+        <div class="disc-tip">
+          <span class="disc-tip-icon">💻</span>
+          <div class="disc-tip-text">
+            <strong>Best on PC &amp; Laptop</strong>
+            Optimised for desktop with a good webcam and wide screen.
+          </div>
+        </div>
+        <div class="disc-tip">
+          <span class="disc-tip-icon">💡</span>
+          <div class="disc-tip-text">
+            <strong>Good lighting helps</strong>
+            Keep your hand and face well-lit for accurate tracking.
+          </div>
+        </div>
+      </div>
+      <!-- Permission row -->
+      <div id="perm-block">
+        <div id="perm-left">
+          <div id="perm-icon-wrap">📷</div>
+          <div id="perm-label">
+            <strong>Camera Access</strong>
+            <span>Required for hand &amp; face tracking</span>
+          </div>
+        </div>
+        <div id="perm-status">Not granted</div>
+      </div>
+      <button id="acceptBtn">📷 Allow Camera &amp; Start Drawing</button>
+      <p id="disc-footer">An experimental prototype by showgif.fun</p>
+    </div>
+  </div>
+
+  <!-- ═══ LOADING ══════════════════════════════════════════════════════════ -->
+  <div id="loading">
+    <div id="loading-logo">🎨</div>
+    <h1>Air Canvas</h1>
+    <div class="spinner"></div>
+    <p id="loadMsg">Loading hand tracking…</p>
+  </div>
+
+  <!-- ═══ APP ══════════════════════════════════════════════════════════════ -->
+  <div id="container">
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="drawCanvas"></canvas>
+    <div id="cursor" class="draw-mode"></div>
+
+    <!-- Toolbar -->
+    <div id="toolbar">
+      <div class="color-btn active" style="background:#ffffff" data-color="#ffffff" title="White"></div>
+      <div class="color-btn" style="background:#f43f5e" data-color="#f43f5e" title="Rose"></div>
+      <div class="color-btn" style="background:#fb923c" data-color="#fb923c" title="Orange"></div>
+      <div class="color-btn" style="background:#facc15" data-color="#facc15" title="Yellow"></div>
+      <div class="color-btn" style="background:#4ade80" data-color="#4ade80" title="Green"></div>
+      <div class="color-btn" style="background:#38bdf8" data-color="#38bdf8" title="Sky"></div>
+      <div class="color-btn" style="background:#a78bfa" data-color="#a78bfa" title="Violet"></div>
+      <div class="tb-sep"></div>
+      <button class="tb-btn" id="emojiMode">✨ Emoji</button>
+      <button class="tb-btn" id="eraseMode">⌫ Erase</button>
+    </div>
+
+    <!-- Emoji sidebar -->
+    <div id="emoji-panel">
+      <div id="emoji-bar">
+        <div id="emoji-bar-header">
+          <span id="emoji-bar-title">✨ EMOJI</span>
+          <button id="closeEmojiPanel" title="Close">✕</button>
+        </div>
+        <div class="emoji-category">🌸 Flowers</div>
+        <span class="emoji-btn selected" data-emoji="🌸">🌸</span>
+        <span class="emoji-btn" data-emoji="🌺">🌺</span>
+        <span class="emoji-btn" data-emoji="🌻">🌻</span>
+        <span class="emoji-btn" data-emoji="🌹">🌹</span>
+        <span class="emoji-btn" data-emoji="🌷">🌷</span>
+        <span class="emoji-btn" data-emoji="💐">💐</span>
+        <span class="emoji-btn" data-emoji="🍀">🍀</span>
+        <span class="emoji-btn" data-emoji="🌿">🌿</span>
+        <span class="emoji-btn" data-emoji="🍃">🍃</span>
+        <span class="emoji-btn" data-emoji="🌴">🌴</span>
+        <span class="emoji-btn" data-emoji="🌊">🌊</span>
+        <span class="emoji-btn" data-emoji="🌙">🌙</span>
+        <span class="emoji-btn" data-emoji="⭐">⭐</span>
+        <span class="emoji-btn" data-emoji="☁️">☁️</span>
+        <span class="emoji-btn" data-emoji="🌈">🌈</span>
+        <div class="emoji-category">❤️ Hearts</div>
+        <span class="emoji-btn" data-emoji="❤️">❤️</span>
+        <span class="emoji-btn" data-emoji="🧡">🧡</span>
+        <span class="emoji-btn" data-emoji="💛">💛</span>
+        <span class="emoji-btn" data-emoji="💚">💚</span>
+        <span class="emoji-btn" data-emoji="💙">💙</span>
+        <span class="emoji-btn" data-emoji="💜">💜</span>
+        <span class="emoji-btn" data-emoji="🤍">🤍</span>
+        <span class="emoji-btn" data-emoji="💖">💖</span>
+        <span class="emoji-btn" data-emoji="💝">💝</span>
+        <div class="emoji-category">🎉 Fun</div>
+        <span class="emoji-btn" data-emoji="🎉">🎉</span>
+        <span class="emoji-btn" data-emoji="🎊">🎊</span>
+        <span class="emoji-btn" data-emoji="🎈">🎈</span>
+        <span class="emoji-btn" data-emoji="🏆">🏆</span>
+        <span class="emoji-btn" data-emoji="🌟">🌟</span>
+        <span class="emoji-btn" data-emoji="✨">✨</span>
+        <span class="emoji-btn" data-emoji="💫">💫</span>
+        <span class="emoji-btn" data-emoji="🔥">🔥</span>
+        <span class="emoji-btn" data-emoji="⚡">⚡</span>
+        <div class="emoji-category">😊 Faces</div>
+        <span class="emoji-btn" data-emoji="😊">😊</span>
+        <span class="emoji-btn" data-emoji="😍">😍</span>
+        <span class="emoji-btn" data-emoji="🥰">🥰</span>
+        <span class="emoji-btn" data-emoji="😎">😎</span>
+        <span class="emoji-btn" data-emoji="🤩">🤩</span>
+        <span class="emoji-btn" data-emoji="😂">😂</span>
+        <span class="emoji-btn" data-emoji="🥳">🥳</span>
+        <span class="emoji-btn" data-emoji="😜">😜</span>
+        <span class="emoji-btn" data-emoji="🤗">🤗</span>
+        <div class="emoji-category">🦋 Animals</div>
+        <span class="emoji-btn" data-emoji="🦋">🦋</span>
+        <span class="emoji-btn" data-emoji="🐝">🐝</span>
+        <span class="emoji-btn" data-emoji="🦄">🦄</span>
+        <span class="emoji-btn" data-emoji="🐬">🐬</span>
+        <span class="emoji-btn" data-emoji="🦊">🦊</span>
+        <span class="emoji-btn" data-emoji="🐧">🐧</span>
+        <span class="emoji-btn" data-emoji="🦁">🦁</span>
+        <span class="emoji-btn" data-emoji="🐠">🐠</span>
+        <span class="emoji-btn" data-emoji="🦚">🦚</span>
+        <div class="emoji-category">🍓 Food</div>
+        <span class="emoji-btn" data-emoji="🍓">🍓</span>
+        <span class="emoji-btn" data-emoji="🍒">🍒</span>
+        <span class="emoji-btn" data-emoji="🍉">🍉</span>
+        <span class="emoji-btn" data-emoji="🍦">🍦</span>
+        <span class="emoji-btn" data-emoji="🍩">🍩</span>
+        <span class="emoji-btn" data-emoji="🧁">🧁</span>
+        <span class="emoji-btn" data-emoji="🍭">🍭</span>
+        <span class="emoji-btn" data-emoji="🎂">🎂</span>
+        <span class="emoji-btn" data-emoji="🍕">🍕</span>
+      </div>
+      <div id="emoji-hint">🤏 Pinch to stamp · <span id="sel-emoji-label">🌸</span></div>
+    </div>
+
+    <!-- Status -->
+    <div id="status">Show your hand to start drawing</div>
+
+    <!-- Bottom bar -->
+    <div id="bottom-bar">
+      <button class="bar-btn" id="undoBtn">↩ Undo</button>
+      <button id="snapBtn" title="Capture Photo">📸</button>
+      <button class="bar-btn" id="clearBtn">🗑 Clear</button>
+    </div>
+
+    <!-- Brush panel -->
+    <div id="brush-panel">
+      <label>SIZE</label>
+      <input type="range" id="brushRange" min="3" max="40" value="8" orient="vertical">
+      <div id="brush-dot"></div>
+    </div>
+
+    <!-- Gesture hint -->
+    <div id="gesture-hint">
+      <strong>✋ Gestures</strong>
+      ☝️ Index up → Draw<br>
+      🤚 Open palm → Wipe<br>
+      🤏 Pinch → Stamp emoji<br>
+      😮 Open mouth → Stamp<br>
+      😉 Wink → Cycle emoji<br>
+      ✊ Fist → Pause
+    </div>
+
+    <!-- Photo preview -->
+    <div id="preview">
+      <div id="preview-title">📸 Your Creation</div>
+      <img id="previewImg" alt="Canvas preview">
+      <div id="preview-actions">
+        <button id="dlBtn">⬇ Download</button>
+        <button id="closePreview">✕ Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script>
+    'use strict';
+
+    // ── Canvas & refs ────────────────────────────────────────────────────────────
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('drawCanvas');
+    const ctx = canvas.getContext('2d');
+    const cursorEl = document.getElementById('cursor');
+    const statusEl = document.getElementById('status');
+    const loadMsg = document.getElementById('loadMsg');
+    const loadingEl = document.getElementById('loading');
+    const brushDot = document.getElementById('brush-dot');
+    const brushRange = document.getElementById('brushRange');
+    const emojiPanel = document.getElementById('emoji-panel');
+    const selLabel = document.getElementById('sel-emoji-label');
+
+    let W, H;
+    function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // ── State ────────────────────────────────────────────────────────────────────
+    let currentColor = '#ffffff';
+    let brushSize = 8;
+    let mode = 'draw'; // 'draw' | 'emoji' | 'erase'
+    let selectedEmoji = '🌸';
+    let strokes = [], currentStroke = null;
+    let emojiStamps = [], lastEmojiTime = 0;
+    let isDrawing = false;
+    let lastHandState = 'none';
+
+    // ── One Euro Filter ──────────────────────────────────────────────────────────
+    // The gold-standard adaptive smoothing filter for real-time pointer input.
+    // At rest/slow speed → very heavy smoothing (eliminates jitter).
+    // At fast speed → minimal smoothing (no perceptible lag).
+    class OneEuroFilter {
+      constructor(freq = 30, minCutoff = 1.0, beta = 0.007, dCutoff = 1.0) {
+        this.freq = freq;
+        this.minCutoff = minCutoff; // lower = smoother at rest
+        this.beta = beta;      // higher = less lag on fast moves
+        this.dCutoff = dCutoff;
+        this._x = null;
+        this._dx = 0;
+      }
+      _alpha(cutoff) {
+        const te = 1 / this.freq;
+        const tau = 1 / (2 * Math.PI * cutoff);
+        return 1 / (1 + tau / te);
+      }
+      filter(x) {
+        if (this._x === null) { this._x = x; return x; }
+        // Derivative
+        const dxRaw = (x - this._x) * this.freq;
+        this._dx = this._dx + this._alpha(this.dCutoff) * (dxRaw - this._dx);
+        // Adaptive cutoff
+        const cutoff = this.minCutoff + this.beta * Math.abs(this._dx);
+        this._x = this._x + this._alpha(cutoff) * (x - this._x);
+        return this._x;
+      }
+      reset() { this._x = null; this._dx = 0; }
+    }
+
+    const filterX = new OneEuroFilter(30, 0.8, 0.008);
+    const filterY = new OneEuroFilter(30, 0.8, 0.008);
+
+    // ── Brush ────────────────────────────────────────────────────────────────────
+    brushRange.addEventListener('input', () => {
+      brushSize = +brushRange.value;
+      const s = Math.max(6, Math.min(brushSize * 1.6, 32));
+      brushDot.style.width = brushDot.style.height = s + 'px';
+    });
+
+    // ── Color buttons ────────────────────────────────────────────────────────────
+    document.querySelectorAll('.color-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentColor = btn.dataset.color;
+        if (mode !== 'emoji') { mode = 'draw'; updateModeUI(); }
+      });
+    });
+
+    // ── Emoji buttons ────────────────────────────────────────────────────────────
+    const emojiList = [];
+    document.querySelectorAll('.emoji-btn').forEach(btn => {
+      emojiList.push(btn.dataset.emoji);
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedEmoji = btn.dataset.emoji;
+        if (selLabel) selLabel.textContent = selectedEmoji;
+      });
+    });
+
+    function cycleEmoji(dir) {
+      const idx = emojiList.indexOf(selectedEmoji);
+      const next = (idx + dir + emojiList.length) % emojiList.length;
+      const target = document.querySelector(`.emoji-btn[data-emoji="${emojiList[next]}"]`);
+      if (target) target.click();
+    }
+
+    // ── Mode buttons ─────────────────────────────────────────────────────────────
+    document.getElementById('emojiMode').addEventListener('click', () => {
+      mode = mode === 'emoji' ? 'draw' : 'emoji'; updateModeUI();
+    });
+    document.getElementById('eraseMode').addEventListener('click', () => {
+      mode = mode === 'erase' ? 'draw' : 'erase'; updateModeUI();
+    });
+    document.getElementById('closeEmojiPanel').addEventListener('click', () => {
+      mode = 'draw'; updateModeUI();
+    });
+
+    function updateModeUI() {
+      const emojiBtn = document.getElementById('emojiMode');
+      const eraseBtn = document.getElementById('eraseMode');
+      emojiBtn.classList.toggle('active', mode === 'emoji');
+      eraseBtn.classList.toggle('active-erase', mode === 'erase');
+      eraseBtn.classList.remove('active');
+      emojiPanel.classList.toggle('visible', mode === 'emoji');
+      if (mode === 'draw') statusEl.textContent = '☝️ Point index finger to draw';
+      if (mode === 'emoji') statusEl.textContent = '🤏 Pinch or open mouth to stamp emoji';
+      if (mode === 'erase') statusEl.textContent = '⌫ Erase mode — drag to erase';
+    }
+
+    // ── Clear / Undo ─────────────────────────────────────────────────────────────
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      strokes = []; emojiStamps = []; currentStroke = null; redraw();
+    });
+    document.getElementById('undoBtn').addEventListener('click', () => {
+      const ls = strokes.length ? strokes[strokes.length - 1] : null;
+      const le = emojiStamps.length ? emojiStamps[emojiStamps.length - 1] : null;
+      if (le && (!ls || le.t > ls.t)) emojiStamps.pop();
+      else if (ls) strokes.pop();
+      redraw();
+    });
+
+    // ── Drawing ──────────────────────────────────────────────────────────────────
+    function redraw() {
+      ctx.clearRect(0, 0, W, H);
+      strokes.forEach(drawStroke);
+      emojiStamps.forEach(drawEmoji);
+    }
+
+    function drawStroke(s) {
+      if (!s || !s.pts || s.pts.length < 2) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (s.erase) {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = s.size * 4;
+        ctx.strokeStyle = 'rgba(0,0,0,1)';
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.lineWidth = s.size;
+        ctx.strokeStyle = s.color;
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = s.color;
+      }
+      ctx.moveTo(s.pts[0].x, s.pts[0].y);
+      for (let i = 1; i < s.pts.length; i++) ctx.lineTo(s.pts[i].x, s.pts[i].y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawEmoji(e) {
+      ctx.save();
+      ctx.font = `${e.size}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(e.emoji, e.x, e.y);
+      ctx.restore();
+    }
+
+    function stampEmoji(x, y) {
+      const now = Date.now();
+      if (now - lastEmojiTime < 550) return;
+      lastEmojiTime = now;
+      const stamp = { emoji: selectedEmoji, x, y, size: 56, t: now };
+      emojiStamps.push(stamp);
+      // pop animation
+      let frame = 0;
+      const base = 56;
+      (function anim() {
+        if (frame > 14) { stamp.size = base; redraw(); return; }
+        stamp.size = base * (1 + 0.45 * Math.sin((frame / 14) * Math.PI));
+        redraw();
+        frame++;
+        requestAnimationFrame(anim);
+      })();
+    }
+
+    // ── Gesture helpers ───────────────────────────────────────────────────────────
+    function isFist(lm) {
+      return [8, 12, 16, 20].every((t, i) => lm[t].y > lm[[6, 10, 14, 18][i]].y);
+    }
+    function isPinch(lm) {
+      const dx = lm[4].x - lm[8].x, dy = lm[4].y - lm[8].y;
+      return Math.sqrt(dx * dx + dy * dy) < 0.06;
+    }
+    function isIndexPointing(lm) {
+      return lm[8].y < lm[6].y && lm[12].y > lm[10].y;
+    }
+    function isOpenHand(lm) {
+      return lm[8].y < lm[6].y && lm[12].y < lm[10].y && lm[16].y < lm[14].y && lm[20].y < lm[18].y;
+    }
+
+    // ── Hand tracking results ─────────────────────────────────────────────────────
+    function onHandResults(results) {
+      if (!results.multiHandLandmarks || !results.multiHandLandmarks.length) {
+        cursorEl.style.display = 'none';
+        if (isDrawing && currentStroke) { strokes.push(currentStroke); currentStroke = null; }
+        isDrawing = false;
+        filterX.reset(); filterY.reset();
+        lastHandState = 'none';
+        statusEl.textContent = '✋ Show your hand to the camera';
+        return;
+      }
+
+      const lm = results.multiHandLandmarks[0];
+      const tipX = filterX.filter((1 - lm[8].x) * W);
+      const tipY = filterY.filter(lm[8].y * H);
+
+      // Determine gesture
+      let state;
+      if (isOpenHand(lm)) state = 'wipe';
+      else if (isIndexPointing(lm)) state = 'point';
+      else if (isFist(lm)) state = 'fist';
+      else state = 'other';
+
+      // Commit stroke on gesture change
+      if (state !== lastHandState && isDrawing && currentStroke) {
+        strokes.push(currentStroke); currentStroke = null; isDrawing = false;
+      }
+      lastHandState = state;
+
+      // ── WIPE ────────────────────────────────────────────────────────────────
+      if (state === 'wipe') {
+        const px = (1 - lm[9].x) * W, py = lm[9].y * H;
+        cursorEl.className = 'wipe-mode';
+        cursorEl.style.display = 'block';
+        cursorEl.style.left = px + 'px';
+        cursorEl.style.top = py + 'px';
+        statusEl.textContent = '🤚 Wiping canvas…';
+        if (!isDrawing) {
+          isDrawing = true;
+          currentStroke = { color: 'rgba(0,0,0,1)', size: 38, erase: true, pts: [], t: Date.now() };
+        }
+        currentStroke.pts.push({ x: px, y: py });
+        redraw(); drawStroke(currentStroke);
+        return;
+      }
+
+      // ── Normal cursor ────────────────────────────────────────────────────────
+      cursorEl.className = 'draw-mode';
+      cursorEl.style.display = 'block';
+      cursorEl.style.left = tipX + 'px';
+      cursorEl.style.top = tipY + 'px';
+      const cColor = mode === 'erase' ? '#f43f5e' : (mode === 'emoji' ? '#facc15' : currentColor);
+      cursorEl.style.borderColor = cColor;
+      cursorEl.style.boxShadow = `0 0 8px ${cColor}`;
+
+      // ── EMOJI PINCH ─────────────────────────────────────────────────────────
+      if (mode === 'emoji') {
+        if (isPinch(lm)) { stampEmoji(tipX, tipY); statusEl.textContent = '✨ Stamped!'; }
+        else statusEl.textContent = '🤏 Pinch to stamp · 😮 Open mouth to stamp';
+        return;
+      }
+
+      // ── DRAW / ERASE ─────────────────────────────────────────────────────────
+      if (state === 'point') {
+        statusEl.textContent = mode === 'erase' ? '⌫ Erasing…' : '🖊️ Drawing…';
+        if (!isDrawing) {
+          isDrawing = true;
+          currentStroke = { color: currentColor, size: brushSize, erase: mode === 'erase', pts: [], t: Date.now() };
+        }
+        currentStroke.pts.push({ x: tipX, y: tipY });
+        redraw(); drawStroke(currentStroke);
+      } else {
+        statusEl.textContent = state === 'fist' ? '✊ Fist — lift index to draw' : '☝️ Point index finger to draw';
+      }
+    }
+
+    // ── Face gesture results ──────────────────────────────────────────────────────
+    let lastFaceStampTime = 0, lastWinkTime = 0;
+
+    function onFaceResults(results) {
+      if (!results.multiFaceLandmarks || !results.multiFaceLandmarks.length) return;
+      const lm = results.multiFaceLandmarks[0];
+
+      const mouthOpen = Math.abs(lm[14].y - lm[13].y);
+      const leftEyeOpen = Math.abs(lm[159].y - lm[145].y);
+      const rightEyeOpen = Math.abs(lm[386].y - lm[374].y);
+      const eyeAvg = (leftEyeOpen + rightEyeOpen) / 2;
+      const now = Date.now();
+
+      // 😮 Mouth open → stamp emoji
+      if (mouthOpen > 0.045 && now - lastFaceStampTime > 700) {
+        lastFaceStampTime = now;
+        stampEmoji((1 - lm[1].x) * W, lm[1].y * H);
+        statusEl.textContent = '😮 Mouth open — emoji stamped!';
+      }
+
+      // 😉 Wink → cycle emoji
+      if (now - lastWinkTime > 800) {
+        const leftClosed = leftEyeOpen < eyeAvg * 0.44;
+        const rightClosed = rightEyeOpen < eyeAvg * 0.44;
+        if (leftClosed && !rightClosed) {
+          lastWinkTime = now; cycleEmoji(-1);
+          statusEl.textContent = '😉 Left wink — prev emoji: ' + selectedEmoji;
+        } else if (rightClosed && !leftClosed) {
+          lastWinkTime = now; cycleEmoji(+1);
+          statusEl.textContent = '😉 Right wink — next emoji: ' + selectedEmoji;
+        }
+      }
+    }
+
+    // ── Snapshot ──────────────────────────────────────────────────────────────────
+    document.getElementById('snapBtn').addEventListener('click', () => {
+      const snap = document.createElement('canvas');
+      snap.width = W; snap.height = H;
+      const sc = snap.getContext('2d');
+      sc.save(); sc.translate(W, 0); sc.scale(-1, 1);
+      sc.drawImage(video, 0, 0, W, H);
+      sc.restore();
+      sc.drawImage(canvas, 0, 0);
+      const url = snap.toDataURL('image/png');
+      document.getElementById('previewImg').src = url;
+      document.getElementById('preview').classList.add('show');
+      document.getElementById('dlBtn').onclick = () => {
+        const a = document.createElement('a');
+        a.href = url; a.download = 'aircanvas_' + Date.now() + '.png'; a.click();
+      };
+    });
+    document.getElementById('closePreview').addEventListener('click', () => {
+      document.getElementById('preview').classList.remove('show');
+    });
+
+    // ── Init (called after camera permission granted) ─────────────────────────────
+    async function init() {
+      try {
+        loadMsg.textContent = 'Starting camera…';
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: false
+        });
+        video.srcObject = stream;
+        await new Promise(r => { video.onloadedmetadata = r; });
+
+        loadMsg.textContent = 'Loading hand tracker…';
+        const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.75, minTrackingConfidence: 0.7 });
+        hands.onResults(onHandResults);
+
+        loadMsg.textContent = 'Loading face tracker…';
+        const faceMesh = new FaceMesh({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
+        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+        faceMesh.onResults(onFaceResults);
+
+        const cam = new Camera(video, {
+          onFrame: async () => {
+            await hands.send({ image: video });
+            await faceMesh.send({ image: video });
+          },
+          width: 1280, height: 720
+        });
+        await cam.start();
+        loadingEl.style.display = 'none';
+      } catch (err) {
+        loadMsg.textContent = '⚠️ ' + err.message;
+      }
+    }
+
+    // ── Disclaimer + Permission flow ──────────────────────────────────────────────
+    function setPermStatus(state) {
+      const el = document.getElementById('perm-status');
+      const btn = document.getElementById('acceptBtn');
+      el.className = state;
+      if (state === 'granted') {
+        el.textContent = '✔ Granted';
+        btn.textContent = '✨ All set — Let me draw!';
+        btn.style.background = 'linear-gradient(135deg, #34d399, #60a5fa)';
+        btn.disabled = false;
+      } else if (state === 'denied') {
+        el.textContent = '✕ Denied';
+        btn.textContent = '⚠️ Camera blocked — check browser settings';
+        btn.style.background = 'rgba(244,63,94,0.45)';
+        btn.style.boxShadow = '0 4px 14px rgba(244,63,94,0.25)';
+        btn.disabled = false;
+      } else if (state === 'asking') {
+        el.textContent = '⏳ Asking…';
+        btn.textContent = 'Waiting for permission…';
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+      }
+    }
+
+    // Pre-check permission state on load
+    (async () => {
+      try {
+        const ps = await navigator.permissions.query({ name: 'camera' });
+        if (ps.state === 'granted') setPermStatus('granted');
+        else if (ps.state === 'denied') setPermStatus('denied');
+      } catch (_) { /* permissions API unavailable */ }
+    })();
+
+    document.getElementById('acceptBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('acceptBtn');
+      if (btn.disabled) return;
+
+      setPermStatus('asking');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        stream.getTracks().forEach(t => t.stop()); // release test stream
+        setPermStatus('granted');
+
+        await new Promise(r => setTimeout(r, 700));
+        const disc = document.getElementById('disclaimer');
+        disc.style.transition = 'opacity 0.5s ease';
+        disc.style.opacity = '0';
+        setTimeout(() => { disc.style.display = 'none'; init(); }, 500);
+      } catch (_) {
+        setPermStatus('denied');
+      }
+    });
+  </script>
+</body>
+
+</html>
